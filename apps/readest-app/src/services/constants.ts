@@ -296,6 +296,8 @@ export const DEFAULT_READSETTINGS: ReadSettings = {
   sideBarWidth: '15%',
   isSideBarPinned: true,
   notebookWidth: '25%',
+  notebookHeight: '35%',
+  notebookPosition: 'auto',
   isNotebookPinned: false,
   notebookActiveTab: 'notes',
   translationProvider: 'deepl',

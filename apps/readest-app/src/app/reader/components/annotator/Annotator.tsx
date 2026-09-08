@@ -90,6 +90,7 @@ import PageTurnHint from './PageTurnHint';
 import SelectionRangeEditor from './SelectionRangeEditor';
 import AnnotationPopup from './AnnotationPopup';
 import DictionaryPopup from './DictionaryPopup';
+import AIPopup from './AIPopup';
 import DictionarySheet from './DictionarySheet';
 import NoteEditorSheet from './NoteEditorSheet';
 import TranslatorPopup from './TranslatorPopup';
@@ -179,11 +180,13 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
   const [showDictionaryPopup, setShowDictionaryPopup] = useState(false);
   const [showDeepLPopup, setShowDeepLPopup] = useState(false);
   const [showProofreadPopup, setShowProofreadPopup] = useState(false);
+  const [showAIPopup, setShowAIPopup] = useState(false);
   const [trianglePosition, setTrianglePosition] = useState<Position>();
   const [annotPopupPosition, setAnnotPopupPosition] = useState<Position>();
   const [dictPopupPosition, setDictPopupPosition] = useState<Position>();
   const [translatorPopupPosition, setTranslatorPopupPosition] = useState<Position>();
   const [proofreadPopupPosition, setProofreadPopupPosition] = useState<Position>();
+  const [aiPopupPosition, setAIPopupPosition] = useState<Position>();
   const [highlightOptionsVisible, setHighlightOptionsVisible] = useState(false);
   const [showAnnotationNotes, setShowAnnotationNotes] = useState(false);
   // The note the Annotate action is currently collecting, plus the highlights
@@ -227,7 +230,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
   const pendingWordLensDictRef = useRef(false);
 
   const showingPopup =
-    showAnnotPopup || showDictionaryPopup || showDeepLPopup || showProofreadPopup;
+    showAnnotPopup || showDictionaryPopup || showDeepLPopup || showProofreadPopup || showAIPopup;
 
   const popupPadding = useResponsiveSize(10);
   const trianglePadding = popupPadding * 2 + 6;
@@ -242,6 +245,10 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
   const transPopupHeight = Math.min(265, maxHeight);
   const proofreadPopupWidth = Math.min(440, maxWidth);
   const proofreadPopupHeight = Math.min(200, maxHeight);
+  const aiPopupWidth = Math.min(420, maxWidth);
+  // Two or three sentences plus the chat button; the body scrolls if the
+  // model is wordier than asked.
+  const aiPopupHeight = Math.min(240, maxHeight);
   const canShare = canShareText(appService);
   // The toolbar is now customizable, so size the selection popup to the number
   // of visible tools (responsive) up to a max — otherwise a 2-tool toolbar
@@ -297,11 +304,13 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
       proofreadPopupHeight,
       popupPadding,
     );
+    const aiPopupPos = getPopupPosition(triangPos, rect, aiPopupWidth, aiPopupHeight, popupPadding);
     if (triangPos.point.x == 0 || triangPos.point.y == 0) return;
     setAnnotPopupPosition(annotPopupPos);
     setDictPopupPosition(dictPopupPos);
     setTranslatorPopupPosition(transPopupPos);
     setProofreadPopupPosition(proofreadPopupPos);
+    setAIPopupPosition(aiPopupPos);
     setTrianglePosition(triangPos);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selection, bookKey, viewSettings.vertical]);
@@ -345,6 +354,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
       setShowDictionaryPopup(false);
       setShowDeepLPopup(false);
       setShowProofreadPopup(false);
+      setShowAIPopup(false);
       setEditingAnnotation(null);
       setNoteEditorTarget(null);
     }, 500),
@@ -1024,6 +1034,9 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
             handleShowAnnotPopup();
           }
           break;
+        case 'ai':
+          handleAskAI();
+          break;
         case 'translate':
           handleTranslation();
           break;
@@ -1093,11 +1106,19 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
         proofreadPopupHeight,
         popupPadding,
       );
+      const aiPopupPos = getPopupPosition(
+        triangPos,
+        rect,
+        aiPopupWidth,
+        aiPopupHeight,
+        popupPadding,
+      );
       if (triangPos.point.x == 0 || triangPos.point.y == 0) return;
       setAnnotPopupPosition(annotPopupPos);
       setDictPopupPosition(dictPopupPos);
       setTranslatorPopupPosition(transPopupPos);
       setProofreadPopupPosition(proofreadPopupPos);
+      setAIPopupPosition(aiPopupPos);
       setTrianglePosition(triangPos);
 
       // A lookup surface republishes the very selection it is anchored to:
@@ -1107,7 +1128,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
       // answering it with the toolbar (or, worse, re-running the quick action)
       // closed the surface on the frame it opened (#6018). Nothing can select
       // new text while one of these is up — they all sit over the page.
-      if (showDictionaryPopup || showDeepLPopup || showProofreadPopup) return;
+      if (showDictionaryPopup || showDeepLPopup || showProofreadPopup || showAIPopup) return;
 
       const { enableAnnotationQuickActions, annotationQuickAction } = viewSettings;
       if (wantWordLensDict) {
@@ -1215,6 +1236,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
     setShowDeepLPopup(false);
     setShowDictionaryPopup(false);
     setShowProofreadPopup(false);
+    setShowAIPopup(false);
   };
 
   const handleCopy = (dismissPopup = true) => {
@@ -1621,6 +1643,13 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
     setShowAnnotPopup(false);
     void suppressNativeSelectionHandles();
     setShowDictionaryPopup(true);
+  };
+
+  const handleAskAI = () => {
+    if (!selection || !selection.text) return;
+    setShowAnnotPopup(false);
+    void suppressNativeSelectionHandles();
+    setShowAIPopup(true);
   };
 
   const handleTranslation = () => {
@@ -2320,6 +2349,8 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
         return { tooltipText: _(label), Icon, onClick: handleSearch };
       case 'dictionary':
         return { tooltipText: _(label), Icon, onClick: handleDictionary };
+      case 'ai':
+        return { tooltipText: _(label), Icon, onClick: handleAskAI };
       case 'translate':
         return { tooltipText: _(label), Icon, onClick: handleTranslation };
       case 'tts':
@@ -2370,7 +2401,11 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
   // toolbar: hide them while any of those is open, and let them come back with
   // the toolbar (or go with the dismiss).
   const overlaySurfaceOpen =
-    showDictionaryPopup || showDeepLPopup || showProofreadPopup || !!noteEditorTarget;
+    showDictionaryPopup ||
+    showDeepLPopup ||
+    showProofreadPopup ||
+    showAIPopup ||
+    !!noteEditorTarget;
 
   // Below `sm` (or short landscape) the note editor is a bottom sheet rather
   // than a popup pinned to the selection: an anchored editor would sit under
@@ -2424,6 +2459,17 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
             />
           );
         })()}
+      {showAIPopup && selection && trianglePosition && aiPopupPosition && (
+        <AIPopup
+          bookKey={bookKey}
+          selection={selection}
+          position={aiPopupPosition}
+          trianglePosition={trianglePosition}
+          popupWidth={aiPopupWidth}
+          popupHeight={aiPopupHeight}
+          onDismiss={handleDismissPopupShowToolbar}
+        />
+      )}
       {showDeepLPopup && trianglePosition && translatorPopupPosition && (
         <TranslatorPopup
           text={selection?.text as string}

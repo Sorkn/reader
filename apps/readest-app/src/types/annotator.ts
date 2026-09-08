@@ -5,6 +5,7 @@ export type AnnotationToolType =
   | 'annotate'
   | 'search'
   | 'dictionary'
+  | 'ai'
   | 'translate'
   | 'tts'
   | 'proofread'

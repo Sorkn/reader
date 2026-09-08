@@ -4,8 +4,12 @@ import { TextSelection } from '@/utils/sel';
 
 export type NotebookTab = 'notes' | 'ai';
 
+/** Which edge the notebook opens against. 'auto' follows the window shape. */
+export type NotebookPosition = 'auto' | 'side' | 'bottom';
+
 interface NotebookState {
   notebookWidth: string;
+  notebookHeight: string;
   isNotebookVisible: boolean;
   isNotebookPinned: boolean;
   notebookActiveTab: NotebookTab;
@@ -22,6 +26,8 @@ interface NotebookState {
   toggleNotebookPin: () => void;
   getNotebookWidth: () => string;
   setNotebookWidth: (width: string) => void;
+  getNotebookHeight: () => string;
+  setNotebookHeight: (height: string) => void;
   setNotebookVisible: (visible: boolean) => void;
   setNotebookPin: (pinned: boolean) => void;
   setNotebookActiveTab: (tab: NotebookTab) => void;
@@ -34,6 +40,7 @@ interface NotebookState {
 
 export const useNotebookStore = create<NotebookState>((set, get) => ({
   notebookWidth: '',
+  notebookHeight: '',
   isNotebookVisible: false,
   isNotebookPinned: false,
   notebookActiveTab: 'notes',
@@ -44,6 +51,8 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   getIsNotebookVisible: () => get().isNotebookVisible,
   getNotebookWidth: () => get().notebookWidth,
   setNotebookWidth: (width: string) => set({ notebookWidth: width }),
+  getNotebookHeight: () => get().notebookHeight,
+  setNotebookHeight: (height: string) => set({ notebookHeight: height }),
   toggleNotebook: () => set((state) => ({ isNotebookVisible: !state.isNotebookVisible })),
   toggleNotebookPin: () => set((state) => ({ isNotebookPinned: !state.isNotebookPinned })),
   setNotebookVisible: (visible: boolean) => set({ isNotebookVisible: visible }),

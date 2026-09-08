@@ -36,18 +36,34 @@ echo "==> Сборка из $(git -C "$REPO_ROOT" rev-parse --short HEAD) (ве�
 # --features devtools оставляет включённым веб-инспектор: правый клик →
 # Inspect Element прямо в собранном приложении. Для отладки своих правок это
 # сильно полезнее, чем чистая релизная сборка.
+#
+# createUpdaterArtifacts в tauri.conf.json включён, поэтому после сборки CLI
+# делает архив для автообновления и подписывает его. Пары ключей у нас пока
+# нет — в конфиге лежит апстримовский pubkey без приватной половины, и сборка
+# падает на самом последнем шаге с «A public key has been found, but no
+# private key», уже собрав рабочий бандл. Локальной сборке этот архив не нужен,
+# поэтому выключаем его, пока ключ не задан.
 cd "$REPO_ROOT/apps/readest-app"
-pnpm tauri build --features devtools --bundles app
+if [[ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]]; then
+  pnpm tauri build --features devtools --bundles app
+else
+  pnpm tauri build --features devtools --bundles app \
+    --config '{"bundle":{"createUpdaterArtifacts":false}}'
+fi
 
 [[ -d "$BUILT_APP" ]] || { echo "Сборка прошла, но $BUILT_APP не найден"; exit 1; }
 
 echo "==> Установка в /Applications"
 # Приложение может быть запущено — иначе замена молча оставит старую версию.
-if pgrep -x "Readest" >/dev/null; then
+# Процесс зовётся `readest` строчными (mainBinaryName в tauri.conf.json), а не
+# по имени бандла, поэтому ищем без учёта регистра: `pgrep -x Readest` не
+# находит ничего и тихо пропускает этот шаг.
+if pgrep -ix readest >/dev/null; then
   echo "    закрываю запущенный Readest"
-  osascript -e 'quit app "Readest"' 2>/dev/null || pkill -x Readest || true
+  osascript -e 'quit app "Readest"' 2>/dev/null || pkill -ix readest || true
   # ждём, пока процесс действительно уйдёт
-  for _ in $(seq 20); do pgrep -x "Readest" >/dev/null || break; sleep 0.25; done
+  for _ in $(seq 40); do pgrep -ix readest >/dev/null || break; sleep 0.25; done
+  pgrep -ix readest >/dev/null && { echo "    не удалось закрыть — закрой вручную"; exit 1; }
 fi
 
 rm -rf "$INSTALLED_APP"
