@@ -26,6 +26,7 @@ import PageTurnerSettings from './PageTurnerSettings';
 import AnnotationToolbarCustomizer from './AnnotationToolbarCustomizer';
 import { DEFAULT_ANNOTATION_TOOLBAR_ITEMS } from '@/utils/annotationToolbar';
 import { canShareText } from '@/utils/share';
+import type { NotebookPosition } from '@/store/notebookStore';
 import { optInTelemetry, optOutTelemetry } from '@/utils/telemetry';
 import KeyboardShortcutsSettings from './KeyboardShortcutsSettings';
 
@@ -331,6 +332,18 @@ const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRes
     }
   };
 
+  const [notebookPosition, setNotebookPosition] = useState<NotebookPosition>(
+    settings.globalReadSettings?.notebookPosition ?? 'auto',
+  );
+
+  const handleSelectNotebookPosition = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const position = event.target.value as NotebookPosition;
+    setNotebookPosition(position);
+    if (!settings.globalReadSettings) return;
+    settings.globalReadSettings.notebookPosition = position;
+    saveSysSettings(envConfig, 'globalReadSettings', settings.globalReadSettings);
+  };
+
   const getQuickActionOptions = () => {
     return [
       {
@@ -452,6 +465,21 @@ const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRes
           status={_('Customize keyboard and mouse controls')}
           onClick={() => setShowKeyboardShortcuts(true)}
         />
+      </BoxedList>
+
+      <BoxedList title={_('Notebook')} data-setting-id='settings.control.notebookPosition'>
+        <SettingsRow label={_('Position')}>
+          <SettingsSelect
+            value={notebookPosition}
+            onChange={handleSelectNotebookPosition}
+            ariaLabel={_('Notebook Position')}
+            options={[
+              { value: 'auto', label: _('Automatic') },
+              { value: 'side', label: _('Side') },
+              { value: 'bottom', label: _('Bottom') },
+            ]}
+          />
+        </SettingsRow>
       </BoxedList>
 
       <BoxedList

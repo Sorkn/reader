@@ -12,6 +12,7 @@ import { useThemeStore } from '@/store/themeStore';
 import { useEnv } from '@/context/EnvContext';
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss';
 import { usePanelResize } from '@/hooks/usePanelResize';
+import { resolveNotebookDock } from '@/app/reader/utils/mobileLayout';
 import { eventDispatcher } from '@/utils/event';
 import { BookNote } from '@/types/book';
 import { getBookDirFromLanguage } from '@/utils/book';
@@ -40,11 +41,14 @@ const Notebook: React.FC = () => {
     useSidebarStore();
   const {
     notebookWidth,
+    notebookHeight: dockedNotebookHeight,
     isNotebookVisible,
     isNotebookPinned,
     notebookActiveTab,
     getNotebookWidth,
     setNotebookWidth,
+    setNotebookHeight,
+    getNotebookHeight,
     setNotebookVisible,
     setNotebookPin,
     toggleNotebookPin,
@@ -58,6 +62,12 @@ const Notebook: React.FC = () => {
 
   const isMobile =
     appService?.isMobile === true || window.innerWidth < 640 || window.innerHeight < 640;
+  // A real bottom dock, distinct from the mobile full-screen sheet above: the
+  // panel takes the lower slice of the window and the book keeps the rest.
+  const dockBottom =
+    !isMobile &&
+    resolveNotebookDock(settings.globalReadSettings.notebookPosition, appService?.isMobile) ===
+      'bottom';
   const [isFullHeightInMobile, setIsFullHeightInMobile] = useState(isMobile);
 
   const hideNotebook = useCallback(() => {
@@ -93,6 +103,7 @@ const Notebook: React.FC = () => {
 
   useEffect(() => {
     setNotebookWidth(settings.globalReadSettings.notebookWidth);
+    setNotebookHeight(settings.globalReadSettings.notebookHeight);
     setNotebookPin(settings.globalReadSettings.isNotebookPinned);
     setNotebookVisible(settings.globalReadSettings.isNotebookPinned);
     if (settings.globalReadSettings.notebookActiveTab) {
@@ -113,6 +124,11 @@ const Notebook: React.FC = () => {
   const handleNotebookResize = (newWidth: string) => {
     setNotebookWidth(newWidth);
     settings.globalReadSettings.notebookWidth = newWidth;
+  };
+
+  const handleNotebookHeightResize = (newHeight: string) => {
+    setNotebookHeight(newHeight);
+    settings.globalReadSettings.notebookHeight = newHeight;
   };
 
   const handleTogglePin = () => {
@@ -169,6 +185,15 @@ const Notebook: React.FC = () => {
       onResize: handleNotebookResize,
     });
 
+  const { handleResizeStart: handleHeightDragStart, handleResizeKeyDown: handleHeightDragKeyDown } =
+    usePanelResize({
+      side: 'bottom',
+      minWidth: MIN_NOTEBOOK_WIDTH,
+      maxWidth: MAX_NOTEBOOK_WIDTH,
+      getWidth: getNotebookHeight,
+      onResize: handleNotebookHeightResize,
+    });
+
   if (!sideBarBookKey) return null;
   const bookData = getBookData(sideBarBookKey);
   const excerptNotes = (getConfig(sideBarBookKey)?.booknotes ?? [])
@@ -189,8 +214,9 @@ const Notebook: React.FC = () => {
       <div
         ref={notebookRef}
         className={clsx(
-          'notebook-container right-0 flex min-w-60 select-none flex-col',
-          'full-height font-sans text-base font-normal transition-[padding-top] duration-300 sm:text-sm',
+          'notebook-container flex min-w-60 select-none flex-col',
+          'font-sans text-base font-normal transition-[padding-top] duration-300 sm:text-sm',
+          dockBottom ? 'inset-x-0 bottom-0' : 'right-0 full-height',
           viewSettings?.isEink ? 'bg-base-100' : 'bg-base-200',
           appService?.hasRoundedWindow && 'rounded-window-top-right rounded-window-bottom-right',
           isNotebookPinned ? 'z-20' : 'z-[45] shadow-2xl',
@@ -200,9 +226,21 @@ const Notebook: React.FC = () => {
         aria-label={_('Notebook')}
         dir={viewSettings?.rtl && languageDir === 'rtl' ? 'rtl' : 'ltr'}
         style={{
-          width: isMobile ? '100%' : notebookWidth,
-          maxWidth: isMobile ? '100%' : `${MAX_NOTEBOOK_WIDTH * 100}%`,
-          position: isMobile ? 'fixed' : isNotebookPinned ? 'relative' : 'absolute',
+          width: isMobile || dockBottom ? '100%' : notebookWidth,
+          maxWidth: isMobile || dockBottom ? '100%' : `${MAX_NOTEBOOK_WIDTH * 100}%`,
+          height: dockBottom ? dockedNotebookHeight : undefined,
+          maxHeight: dockBottom ? `${MAX_NOTEBOOK_WIDTH * 100}%` : undefined,
+          // A bottom dock overlays the lower slice of the reader. It cannot be
+          // `relative` while pinned: reader-content is a flex ROW, so the panel
+          // would take a column on the right instead of the bottom. Reflowing
+          // the book above it needs that container split into a column first.
+          position: isMobile
+            ? 'fixed'
+            : dockBottom
+              ? 'absolute'
+              : isNotebookPinned
+                ? 'relative'
+                : 'absolute',
           paddingTop: `${getPanelTopInset({
             isMobile,
             isFullHeightInMobile,
@@ -223,7 +261,7 @@ const Notebook: React.FC = () => {
         <div
           className={clsx(
             'drag-bar absolute -left-2 top-0 h-full w-0.5 cursor-col-resize bg-transparent p-2',
-            isMobile && 'hidden',
+            (isMobile || dockBottom) && 'hidden',
           )}
           role='slider'
           tabIndex={0}
@@ -235,6 +273,19 @@ const Notebook: React.FC = () => {
           onKeyDown={handleDragKeyDown}
         />
         <div className='shrink-0'>
+          {dockBottom && (
+            <div
+              className='drag-bar absolute -top-2 left-0 h-0.5 w-full cursor-row-resize bg-transparent p-2'
+              role='slider'
+              tabIndex={0}
+              aria-label={_('Resize Notebook')}
+              aria-orientation='vertical'
+              aria-valuenow={parseFloat(dockedNotebookHeight)}
+              onMouseDown={handleHeightDragStart}
+              onTouchStart={handleHeightDragStart}
+              onKeyDown={handleHeightDragKeyDown}
+            />
+          )}
           {isMobile && (
             <div
               role='slider'

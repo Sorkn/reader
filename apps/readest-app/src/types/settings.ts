@@ -6,7 +6,7 @@ import { OPDSCatalog } from './opds';
 import { WebSource } from './webSource';
 import { ABSServer } from './audiobookshelf';
 import type { AISettings } from '@/services/ai/types';
-import type { NotebookTab } from '@/store/notebookStore';
+import type { NotebookTab, NotebookPosition } from '@/store/notebookStore';
 import type { DictionarySettings, ImportedDictionary } from '@/services/dictionaries/types';
 
 export type ThemeType = 'light' | 'dark' | 'auto';
@@ -56,6 +56,10 @@ export interface ReadSettings {
   sideBarWidth: string;
   isSideBarPinned: boolean;
   notebookWidth: string;
+  /** Height of the notebook when it is docked to the bottom. */
+  notebookHeight: string;
+  /** Which edge the notebook opens against; 'auto' follows the window shape. */
+  notebookPosition: NotebookPosition;
   isNotebookPinned: boolean;
   notebookActiveTab: NotebookTab;
   translationProvider: string;

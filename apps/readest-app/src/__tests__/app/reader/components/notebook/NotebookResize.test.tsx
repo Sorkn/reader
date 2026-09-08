@@ -70,8 +70,17 @@ vi.mock('@/hooks/useSwipeToDismiss', () => ({
 }));
 
 vi.mock('@/hooks/usePanelResize', () => ({
-  usePanelResize: ({ onResize }: { onResize: (width: string) => void }) => {
-    h.resize = onResize;
+  // The Notebook registers two resizers now — width for the side dock and
+  // height for the bottom one. Capture only the horizontal one, or this test
+  // would drive the height and assert on the width.
+  usePanelResize: ({
+    side,
+    onResize,
+  }: {
+    side: 'start' | 'end' | 'bottom';
+    onResize: (width: string) => void;
+  }) => {
+    if (side !== 'bottom') h.resize = onResize;
     return { handleResizeStart: vi.fn(), handleResizeKeyDown: vi.fn() };
   },
 }));
