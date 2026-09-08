@@ -1,0 +1,16 @@
+diff --git a/dist/legacy-runtime/runtime-cores/remote-thread-list/RemoteThreadListHookInstanceManager.js b/dist/legacy-runtime/runtime-cores/remote-thread-list/RemoteThreadListHookInstanceManager.js
+index ed6746709955e59997f79709526c2f3c4aa243dd..5c02fe6e1334def42be7d4211a30192feec4e791 100644
+--- a/dist/legacy-runtime/runtime-cores/remote-thread-list/RemoteThreadListHookInstanceManager.js
++++ b/dist/legacy-runtime/runtime-cores/remote-thread-list/RemoteThreadListHookInstanceManager.js
+@@ -79,7 +79,10 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
+             const runtimeCore = threadBinding.getState();
+             const setGetInitializePromise = runtimeCore["__internal_setGetInitializePromise"];
+             if (typeof setGetInitializePromise === "function") {
+-                setGetInitializePromise(() => initPromiseRef.current);
++                // Patched: upstream extracts the method and calls it detached, so
++                // `this` is undefined inside it under ES module strict mode and the
++                // assignment throws. Call it against the runtime core it came from.
++                setGetInitializePromise.call(runtimeCore, () => initPromiseRef.current);
+             }
+         }, [threadBinding]);
+         useEffect(() => {
