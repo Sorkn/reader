@@ -115,7 +115,9 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       tab: 'AI',
       icon: PiRobot,
       label: _('AI Assistant'),
-      disabled: process.env.NODE_ENV === 'production',
+      // Upstream keeps this tab out of release builds while the assistant is
+      // unfinished. This fork is being built around the assistant, so the
+      // settings have to be reachable from the app people actually install.
     },
     {
       tab: 'TTS',
