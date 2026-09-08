@@ -16,6 +16,7 @@ import { useReaderStore } from '@/store/readerStore';
 import { useBookProgress } from '@/store/readerProgressStore';
 import { useAIChatStore } from '@/store/aiChatStore';
 import { aiLogger, createTauriAdapter } from '@/services/ai';
+import { isRagEnabled } from '@/services/ai/rag';
 import {
   LegacyIdbBackend,
   ReedyBackend,
@@ -406,7 +407,12 @@ const LegacyAIAssistant = ({ bookKey }: AIAssistantProps) => {
       ? Math.round((indexProgress.current / indexProgress.total) * 100)
       : 0;
 
-  if (!indexed && !isIndexing) {
+  // Retrieval over the whole book is opt-in: the settings panel offers
+  // "None (disable RAG)" and the chat adapter already sends no chunks for an
+  // unindexed book. Honour that here instead of walling the chat behind an
+  // index the reader did not ask for — the selection context the popup hands
+  // over is enough to hold a conversation.
+  if (!indexed && !isIndexing && aiSettings && isRagEnabled(aiSettings)) {
     return (
       <div className='flex h-full flex-col items-center justify-center gap-3 p-4 text-center'>
         <div className='bg-primary/10 rounded-full p-3'>
